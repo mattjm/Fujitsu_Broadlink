@@ -1,0 +1,58 @@
++427 -460  
++460 -427 
++460 -1248 
++460 -460 
++427 -1281 
++460 -427 
++460 -427 
++460 -427 
++427 -1314 
++427 -1281 
++460 -427 +460 -460 +427 -460 +427 -1281 +460 -1314 +394 -460 +427 -460 +427 -460 +460 -427 +427 -427 +460 -427 +460 -427 +460 -394 +460 -460
+
+long pause as zero: 11010111
+
+short pause as zero:
+
+00101000
+
+
+
+
+each bit is represented as an on and off pulse.  
+
+427 on, 460 off is a binary one
+460 on, 1248 off is a binary zero
+
+Note the value is SENT big-endian, but the unit is interpreting is little-endian.  
+
+
+So from the Fujitsu hex code:
+
+Convert each hex value from little-endian to big-endian (e.g. the first value, 14, would read as 28)
+
+endian-ness only applies to each value--the words are still interpreted in the same order as they're sent.  
+
+Break hex values into binary
+
+each one gets the pulse value above
+each zero gets the pulse value above
+
+THEN these have to be converted to broadlink format.  
+
+broadlink does the pulse timing as the number of ticks, where the tick value is 1/32768 or 32.84
+
+So divid the pulse value by 32.84, encode in hex, and that's the broadlink value.  
+
+
+pseudocode:
+
+fujitsuhexcode = 'deadbeef'
+
+bigendiancode = bigendconvert(fujitsuhexcode)
+
+# create pulses from binary....
+
+for time in list:
+	broadlinkpulse = time/32.84
+	broadlinkcode.append(broadlinkpulse)
