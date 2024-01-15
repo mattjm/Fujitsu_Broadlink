@@ -1,3 +1,5 @@
+These are timings from a lirc file:
+
 +427 -460  
 +460 -427 
 +460 -1248 
@@ -8,30 +10,43 @@
 +460 -427 
 +427 -1314 
 +427 -1281 
-+460 -427 +460 -460 +427 -460 +427 -1281 +460 -1314 +394 -460 +427 -460 +427 -460 +460 -427 +427 -427 +460 -427 +460 -427 +460 -394 +460 -460
++460 -427 
 
-long pause as zero: 11010111
+it defines on time and off time in microseconds
 
-short pause as zero:
+I had a document that said the long pause was a zero and short was one, but that didn't produce the right numbers for me
+
+First eight bits of the above should produce:
 
 00101000
 
+(this is the first byte sent by any Fujitsu payload we're working with)
 
-
-
-each bit is represented as an on and off pulse.  
+So each bit is represented as an on and off pulse.  
 
 427 on, 460 off is a binary one
 460 on, 1248 off is a binary zero
 
-Note the value is SENT big-endian, but the unit is interpreting is little-endian.  
+Looking at the byte again:
 
+00101000
 
-So from the Fujitsu hex code:
+That is hex 0x28 but when you develop codes for the unit they start with 0x14.  The byte order is reversed.   
 
-Convert each hex value from little-endian to big-endian (e.g. the first value, 14, would read as 28)
+The value is SENT little-endian, but the codes we assemble are big-endian (I may have had this backwards in my code and the endian-ness functions have the wrong names--I'll try to confirm the terminology and fix it.  One way or another we have to reverse the byte order.  
 
-endian-ness only applies to each value--the words are still interpreted in the same order as they're sent.  
+The broadlink python library expects the pulse timings as an integer--the integer is multiplied by broadlink's internal tick length to product a pulse of a certain length.  e.g. for a pulse width of 420 microseconds you would divide by the pulse width (32.84) and round it to get 13.  I am still not sure how the internal tick length is arrived at.  Sources:
+
+https://www.reddit.com/r/homeassistant/comments/pl03cj/add_custom_codes_to_broadlink/
+https://github.com/mjg59/python-broadlink/blob/master/protocol.md#sending-data
+
+(I really don't understand the 269/8192 but...it works.)
+
+So we can generate hex codes based on my [previous work](https://github.com/mattjm/Fujitsu_IR/) and [dabram's excellent work](http://old.ercoupe.com/audio/FujitsuIR.pdf) (a copy of the PDF is in this GH repo in case it ever disappears from the web).  Then we just need to turn them into timings 
+
+At a high level, to translate the the Fujitsu hex codes into timings used by broadlink:
+
+Convert each byte from big-endian to little-endian (e.g. the first value, 14, would read as 28).  The bytes are still _sent_ in the same order.  
 
 Break hex values into binary
 
@@ -40,9 +55,9 @@ each zero gets the pulse value above
 
 THEN these have to be converted to broadlink format.  
 
-broadlink does the pulse timing as the number of ticks, where the tick value is 1/32768 or 32.84
+broadlink does the pulse timing as the number of ticks, where the tick value is 269/8192 or 32.84
 
-So divid the pulse value by 32.84, encode in hex, and that's the broadlink value.  
+So divide the pulse duration by 32.84, encode in hex, and that's the broadlink value.  There is some leading and trailing stuff that has to be added for Broadlink to parse the data packet.  
 
 
 pseudocode:
@@ -54,5 +69,9 @@ bigendiancode = bigendconvert(fujitsuhexcode)
 # create pulses from binary....
 
 for time in list:
-	broadlinkpulse = time/32.84
-	broadlinkcode.append(broadlinkpulse)
+    broadlinkpulse = time/32.84
+    broadlinkcode.append(broadlinkpulse)
+
+Implemented (poorly) in broadfromhexcode.py.  Note this code is only tested to work with Fujitsu style hex codes.  There is no expectation it should work for anything else.  The output is the base64 encoded string that goes in a remote file for Home Assistant's SmartIR integration.  
+
+genfujitsuhex.py will generate hex codes based on the different settings.  

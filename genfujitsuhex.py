@@ -1,5 +1,5 @@
 import broadfromhexcode as broad
-
+import json
 # REMEMBER TO CALC THE CHECK BIT
 
 
@@ -23,6 +23,9 @@ existing_codes = [
 ]
 
 new_codes = [
+#'1463001010FE09 30 31 0B 00 0000002074
+#'1463001010fe09 30 41 03 13 0000002059
+#'1463001010fe09 30 41 03 14 0000002058
 '1463001010fe093001040000000020ab',
 '1463001010fe0930110400000000209b',
 '1463001010fe093000040100000020ab',
@@ -34,16 +37,15 @@ new_codes = [
 ]
 
 
-for code in existing_codes:
-    print(broad.to_little_endian(code).hex())
+#for code in existing_codes:
+#    print(broad.to_little_endian(code).hex())
 
 
 M_HEAT = 0x04 
-M_FAN = 0x03
+M_FAN_ONLY = 0x03
 M_DRY = 0x02
 M_COOL = 0x01
-M_AUTO = 0x00
-M_MIN_HEAT = 0x0B
+M_HEAT_COOL = 0x00
 
 F_AUTO = 0x00
 F_HIGH = 0x01
@@ -59,13 +61,14 @@ S_VERTICAL = 0x01
 FIRST_HALF = '1463001010fe0930'
 
 
-
-modes = ['heat', 'dry', 'cool', 'auto', 'min_heat', 'fan']
+#match HA names for these things:  https://developers.home-assistant.io/docs/core/entity/climate/
+modes = ['heat', 'dry', 'cool', 'heat_cool', 'fan_only']
+#for speeds and swing modes HA gives you a list from the names you provide
 speeds = ['auto', 'high', 'medium', 'low', 'quiet']
 temps_heat = range(16, 31) #temp goes to 30 but python range() is not inclusive so we need to go to 31
 # "other" is auto, cool, dry, and fan
-temps_other = range(18, 31) #temp is sent for dry but not shown on remote
-swing = ['off', 'vertical'] 
+temps_other = range(18, 31) #note temp is sent for dry but not shown on remote
+swings = ['off', 'vertical'] 
 
 
 def temp_hex(decimaltemp):
@@ -99,49 +102,14 @@ def fan_swing_hex(fan, swing):
     else:
         return fanSwingHex[2:]
 
-# https://gist.github.com/GeorgeDewar/11171561
-# https://stackoverflow.com/questions/48531654/fujitsu-ir-remote-checksum-calculation
+
+
 def checksum(controlString):
-    controlString = broad.to_little_endian(controlString).hex()
-    print(controlString)
-    verifyBytes = controlString[14:26]#[14:26]
-    print(verifyBytes)
-    sum = 0
-    for x in range(0, len(verifyBytes), 2):
-        print("hex")
-        print(verifyBytes[x:x+2])
-        hexVal = verifyBytes[x:x+2]
-        #print("binary")
-        #print(f'{int(hexVal):08b}')
-        #print("reversed")
-        #print(f'{int(hexVal):08b}'[::-1], 2)
-        reversedDecimalVal = int(f'{int(hexVal):08b}'[::-1], 2)
-        print(reversedDecimalVal)
-        sum += reversedDecimalVal
-    print("sum")
-    print(sum)
-    checksum = (208-sum) % 256
-
-    print(int(checksum))
-    print(f'{checksum:08b}')
-    reversedChecksum = hex(int(f'{checksum:08b}'[::-1], 2))
-    print(f'{checksum:08b}'[::-1], 2)
-    print(reversedChecksum)
-    if len(reversedChecksum) == 3:
-        return '0' + reversedChecksum[2]
-    else:
-        return reversedChecksum[2:]
-
-def checksum2(controlString):
-    #controlString = broad.to_little_endian(controlString).hex()
-    print(controlString)
     verifyBytes = controlString[14:]#[14:26]
-    print(verifyBytes)
     sumBytes = 0
     for x in range(0, len(verifyBytes), 2):
         hexVal = verifyBytes[x:x+2]
         mybytes= bytes.fromhex(hexVal)
-        print(int.from_bytes(mybytes))
         sumBytes += int.from_bytes(mybytes)
     checksumVal = 0
     remainder = sumBytes % 256
@@ -153,51 +121,65 @@ def checksum2(controlString):
         return '0' + checksumVal[2]
     else:
         return checksumVal[2:]
-    
-
-    
-    if len(reversedChecksum) == 3:
-        return '0' + reversedChecksum[2]
-    else:
-        return reversedChecksum[2:]
-
-        
- #= f'{int(verifyBytes):08b}'
-  #  print(byte)
-    
-    
-    #print(verifyBytes)
-    #print(type(verifyBytes))
-    #print(f'{int(verifyBytes):08b}')
 
     
 
 
 
-#testing only
-for temp in temps_heat:
-    print(temp_hex(temp))
-    
-
-for mode in modes:
-    print("mode")
-    print(mode_hex(mode))
-
-print(fan_swing_hex('high', 'off'))
 
 
-def build_control_string(mode, temp, fan, swing):
+
+def build_control_string(mode, speed, swing, temp):
     controlString = FIRST_HALF
-    print(controlString)
     controlString += temp_hex(temp)
-    print(controlString)
     controlString += mode_hex(mode)
-    print (controlString)
-    controlString += fan_swing_hex(fan, swing)
-    print(controlString)
-    controlString += '00000020' #12, 13, and 14 are used for the timer.  15 is always 0x20
-    controlString+= checksum2(controlString)
-    print(controlString)
+    controlString += fan_swing_hex(speed, swing)
+    controlString += '00000020' #12, 13, and 14 are used for the timer (which we don't implement).  15 is always 0x20
+    controlString+= checksum(controlString)
+    return controlString
     
-build_control_string('heat', 17, 'auto', 'off')
 
+commandList = {}
+if __name__ == "__main__": 
+    for mode in modes:
+        commandList[mode] = {}
+        if (mode == 'heat'):
+            temps = temps_heat
+        else:
+            temps = temps_other
+        for speed in speeds:
+            commandList[mode][speed] = {}
+            for swing in swings:
+                commandList[mode][speed][swing] = {}
+                for temp in temps:
+                    #print(mode, speed, swing, temp)
+                    controlString = build_control_string(mode, speed, swing, temp)
+                    #print(controlString)
+                    encodedCommand = broad.broadlink_packet_from_hex(controlString)
+                    commandList[mode][speed][swing][temp] = encodedCommand
+                    
+                
+#print(commandList['heat']['fan_auto']['swing_off'][28])
+smartIRList = {}
+smartIRList['commands'] = commandList
+smartIRList['commands']['economy'] = broad.broadlink_packet_from_hex('146300101009F6')
+smartIRList['commands']['min_heat'] = broad.broadlink_packet_from_hex('1463001010FE0930310B000000002074')
+smartIRList['commands']['off'] = broad.broadlink_packet_from_hex('146300101002fd') # special short string for off
+#print(commandList)
+#jsonExport = json.dumps(smartIRList, indent=2)
+#print(jsonExport)                
+# print(broad.broadlink_packet_from_hex('1463001010fe0930e1031300000020b9'))
+
+with open('smartircommands.json', 'w') as file:
+    json.dump(smartIRList, file, indent=2)
+    print("wrote file")
+
+
+
+
+
+
+
+
+#preset:
+#eco = min_heat
