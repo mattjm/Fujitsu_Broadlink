@@ -29,13 +29,14 @@ Heat goes as low as 16C, but the other modes only go down to 18C.  The file form
 
 ## Freedom Units
 
-If your preferred temperature units are Fahrenheit you will see some odd behavior with the SmartIR integration and the regular remote file--temps will be shown in C but be marked as fahrenheit units.  This remote file has the temperatures in F instead of C.  This also requires having some duplicate commands for everything to work properly.  The other option was to go from 60-88 with increments of 2, but that puts you a full two degrees off by the time you reach 88.  
+If your preferred temperature units are Fahrenheit you will see some odd behavior with the SmartIR integration and the regular remote file--temps will be shown in C but be marked as fahrenheit units.  This remote file has the temperatures in F instead of C to avoid that bug.  This also requires having some duplicate commands for everything to work properly (that is, there is not a 1:1 mapping of C to F temperatures so two F integer temps may round to one C integer temp).  The other option was to go from 60-88 with increments of 2, but that puts you a full two degrees off by the time you reach 88.  
 
 
 Each F temp corresponds to the closest C temp (convert F to C and round to the nearest integer):
 
 ```
  F   C
+60  16
 61  16
 62  17
 63  17
