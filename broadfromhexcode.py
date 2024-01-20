@@ -1,14 +1,12 @@
 import base64
 
-BIT_MARK = 420#420
-ONE_SPACE = 1210#1210
-ZERO_SPACE = 420 #420
+BIT_MARK = 420
+ONE_SPACE = 1210
+ZERO_SPACE = 420 
 TICK = 32.84 # broadlink tick
 IR_TOKEN = 0x26
 
-# test codes
-fujitsuHex = '1463001010fe0930110400000000209b'
-hex2 = '1463001010fe093000040100000020ab'
+
 
 #example broken down
 #auto fan, 60F, heat
@@ -23,6 +21,7 @@ hex2 = '1463001010fe093000040100000020ab'
 def reverse_bits(byte):
     return int(f'{byte:08b}'[::-1], 2)
 
+#the function names are actually reversed...this converts to little endian
 def to_big_endian(hexString):
     bigBytes = bytearray()
     littleBytes = bytes.fromhex(hexString)
@@ -36,6 +35,7 @@ def to_big_endian(hexString):
 # just for testing
 # sometimes when you read a code in from something else it will have the wrong byte order.  This can switch it 
 # back so you can compare it to known values.  This isn't used for the conversion to broadlink.  
+#the function names are actually reverse...this converts to big endian
 def to_little_endian (big):
     bigBytes = bytearray()
     littleBytes = bytes.fromhex(big)
@@ -67,7 +67,7 @@ def calc_microsecond_timings(timings):
     
 
 
-# mostly borrowed from broadlink CLI
+# mostly borrowed from broadlink CLI:  https://github.com/mjg59/python-broadlink/tree/master/cli
 def durations_to_broadlink(durations):
     result = bytearray()
     result.append(IR_TOKEN)

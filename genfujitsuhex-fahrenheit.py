@@ -1,5 +1,6 @@
 import broadfromhexcode as broad
 import json
+from pytemp import pytemp
 
 
 
@@ -25,17 +26,17 @@ FIRST_HALF = '1463001010fe0930'
 
 #match HA names for these things:  https://developers.home-assistant.io/docs/core/entity/climate/
 modes = ['heat', 'dry', 'cool', 'heat_cool', 'fan_only']
-#for speeds and swing modes HA gives you a list from the names you provide
+#for speeds and swing modes HA make the list from the names you provide
 speeds = ['auto', 'high', 'medium', 'low', 'quiet']
-temps_heat = range(16, 31) #temp goes to 30 but python range() is not inclusive so we need to go to 31
+temps_heat = range(61, 87) 
 # "other" is auto, cool, dry, and fan
-temps_other = range(18, 31) #note temp is sent for dry but not shown on remote
+temps_other = range(64, 87) 
 swings = ['off', 'vertical'] 
 
 
 def temp_hex(decimaltemp):
     #temp in c
-    encodedTemp = ((decimaltemp-16)*16) # we can get away with this because there are only 15 temperatures
+    encodedTemp = ((decimaltemp-16)*16)
     # adding 1 makes sure we always send the "turn on the device" signal.  Otherwise it only sends the temp and won't turn on the device if it's off.  
     encodedTemp = hex(encodedTemp + 1)
     if len(encodedTemp) == 3:
@@ -100,6 +101,11 @@ def build_control_string(mode, speed, swing, temp):
     controlString+= checksum(controlString)
     return controlString
     
+    
+def freedomUnits(temp):
+    # this actually converts FROM freedom units ¯\_(ツ)_/¯
+    return round(pytemp(temp, 'f', 'c'))
+    
 
 commandList = {}
 if __name__ == "__main__": 
@@ -114,8 +120,12 @@ if __name__ == "__main__":
             for swing in swings:
                 commandList[mode][speed][swing] = {}
                 for temp in temps:
-                    controlString = build_control_string(mode, speed, swing, temp)
+                    #print(mode, speed, swing, temp)
+                    #convert F temp to C for purposes of calculating the control string
+                    controlString = build_control_string(mode, speed, swing, freedomUnits(temp))
+                    #print(controlString)
                     encodedCommand = broad.broadlink_packet_from_hex(controlString)
+                    #use the F temp here
                     commandList[mode][speed][swing][temp] = encodedCommand
                     
                 
@@ -128,10 +138,7 @@ smartIRList['commands']['off'] = broad.broadlink_packet_from_hex('146300101002fd
 smartIRList['commands']['step_vertical_vane'] = broad.broadlink_packet_from_hex('14630010107986') # short string
 
 
-with open('smartircommands.json', 'w') as file:
+with open('smartircommands-fahrenheit.json', 'w') as file:
     json.dump(smartIRList, file, indent=2)
     print("wrote file")
-
-
-
 

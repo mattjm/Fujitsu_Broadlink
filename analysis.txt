@@ -1,4 +1,4 @@
-These are timings from a lirc file:
+These are timings (skipping any headers) from a lirc file that is known to work:
 
 +427 -460  
 +460 -427 
@@ -75,3 +75,27 @@ for time in list:
 Implemented (poorly) in broadfromhexcode.py.  Note this code is only tested to work with Fujitsu style hex codes.  There is no expectation it should work for anything else.  The output is the base64 encoded string that goes in a remote file for Home Assistant's SmartIR integration.  
 
 genfujitsuhex.py will generate hex codes based on the different settings.  
+
+
+
+
+
+#1-8:  same with every command
+#9: temp and change or on.   least significant bit needs to be 1 for the machine to turn on.  example.  11100000 = E0.  No turn on.  11100001=E1.  Turns on.  
+#10: mode hot/cold.  and timer.  Timer not implemented--always disabled.  
+#11: swing and fan
+#12-14: timer
+#heat high 60: 14 63 00 10 10 fe 09 30 || 00 04 01 00 00 00 20 ab
+#               1  2  3  4  5  6  7  8  || 9 10 11 12 13 14 15 16
+
+# known codes from captures (little-endian)
+existing_codes = [
+'28c60008087f900c80200000000004d5',
+'28c60008087f900c88200000000004d9', # heat auto 60
+'28c60008087f900c00208000000004d5', # heat high 60
+'28c60008087f900c08208000000004d9', # heat high 62
+'28c60008087f900c04208000000004d1', # heat high 64
+'28c60008087f900c0280800000000476', #cool high 68
+'28c60008087f900c07800000000004f3',# cool auto 88
+'28c60008087f900c8780000000000473'# cool ON
+]
