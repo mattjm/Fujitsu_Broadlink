@@ -28,7 +28,7 @@ FIRST_HALF = '1463001010fe0930'
 modes = ['heat', 'dry', 'cool', 'heat_cool', 'fan_only']
 #for speeds and swing modes HA make the list from the names you provide
 speeds = ['auto', 'high', 'medium', 'low', 'quiet']
-temps_heat = range(61, 87) 
+temps_heat = range(60, 87) 
 # "other" is auto, cool, dry, and fan
 temps_other = range(64, 87) 
 swings = ['off', 'vertical'] 
